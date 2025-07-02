@@ -1,71 +1,60 @@
 package ru.yandex.practicum.filmorate.controller;
 
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.service.FilmService;
 
-import java.time.LocalDate;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
-@Slf4j
 @RestController
 @RequestMapping("/films")
 public class FilmController {
-    private final Map<Long, Film> films = new HashMap<>();
-    private long lastId = 0;
-    private final LocalDate cinemaBirthday = LocalDate.of(1895, 12, 28);
+    private final FilmService filmService;
 
-    private long getNextId() {
-        return ++lastId;
+    public FilmController(FilmService filmService) {
+        this.filmService = filmService;
     }
 
-    private void validateFilm(Film film) {
-        if (film.getName() == null || film.getName().isBlank()) {
-            log.warn("Ошибка: пустое название фильма");
-            throw new ValidationException("Название не может быть пустым.");
-        }
-        if (film.getDescription().length() > 200) {
-            log.warn("Ошибка: слишком длинное описание");
-            throw new ValidationException("Максимальная длина описания — 200 символов.");
-        }
-        if (film.getReleaseDate().isBefore(cinemaBirthday)) {
-            log.warn("Ошибка: дата релиза раньше 28 декабря 1895");
-            throw new ValidationException("Дата релиза — не раньше 28 декабря 1895 года.");
-        }
-        if (film.getDuration() < 1) {
-            log.warn("Ошибка: продолжительность меньше 1");
-            throw new ValidationException("Продолжительность фильма должна быть положительным числом.");
-        }
+    @GetMapping("/{id}")
+    public Film getFilm(@PathVariable long id) {
+        return filmService.getFilmOrThrow(id); // исключение пусть летит
     }
 
+
+    @GetMapping("/popular")
+    public List<Film> getPopularFilms(@RequestParam(defaultValue = "10") int count) {
+        return filmService.getPopularFilms(count);
+    }
 
     @GetMapping
-    public Collection<Film> getFilms() {
-        return films.values();
+    public List<Film> getFilms() {
+        return filmService.getFilms();
     }
 
     @PostMapping
     public Film create(@RequestBody Film film) {
-        validateFilm(film);
-        film.setId(getNextId());
-        films.put(film.getId(), film);
-        return film;
+        return filmService.create(film);
     }
 
     @PutMapping
-    public Film update(@RequestBody Film newFilm) {
-        if (!films.containsKey(newFilm.getId())) {
-            log.warn("Фильм с id = {} не найден", newFilm.getId());
-            throw new NotFoundException("Фильм с id = " + newFilm.getId() + " не найден");
-        }
-        validateFilm(newFilm);
-        films.put(newFilm.getId(), newFilm);
-        log.info("Фильм с id = {} обновлён: {}", newFilm.getId(), newFilm);
-        return newFilm;
+    public Film update(@RequestBody Film film) {
+        return filmService.update(film);
     }
 
+    @PutMapping("/{id}/like/{userId}")
+    public void like(@PathVariable long id, @PathVariable long userId) {
+        filmService.addLike(id, userId);
+    }
+
+    @DeleteMapping("/{id}/like/{userId}")
+    public void unlike(@PathVariable long id, @PathVariable long userId) {
+        filmService.removeLike(id, userId);
+    }
+
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable long id) {
+        filmService.deleteFilm(id);
+    }
 }
