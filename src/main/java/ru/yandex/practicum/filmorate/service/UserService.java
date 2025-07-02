@@ -80,4 +80,17 @@ public class UserService {
 
         return commonIds.stream().map(userStorage::findById).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
     }
+
+    public List<User> getUsers() {
+        return userStorage.getUsers();
+    }
+
+    public Optional<User> findById(long id) {
+        return userStorage.findById(id);
+    }
+
+    public void delete(long id) {
+        userStorage.delete(id);
+    }
+
 }
