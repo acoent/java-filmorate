@@ -27,20 +27,21 @@ JOIN genres g ON fg.genre_id = g.id
 WHERE g.name = 'Комедия'
 ```
 Фильмы, понравившиеся пользователю с id = 1
-```SELECT f.*
+```sql
+SELECT f.*
 FROM films f
 JOIN likes l ON f.id = l.film_id
 WHERE l.user_id = 1;
 ```
 Подтверждённые друзья пользователя с id = 1
-```
+```sql
 SELECT u.*
 FROM users u
 JOIN friendships f ON u.id = f.friend_id
 WHERE f.user_id = 1 AND f.status = 'CONFIRMED';
 ```
 Топ-10 фильмов по числу лайков
-```
+```sql
 SELECT f.*, COUNT(l.user_id) AS likes_count
 FROM films f
 LEFT JOIN likes l ON f.id = l.film_id
