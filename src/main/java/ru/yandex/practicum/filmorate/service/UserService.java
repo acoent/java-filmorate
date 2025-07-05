@@ -3,6 +3,8 @@ package ru.yandex.practicum.filmorate.service;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.model.Friendship;
+import ru.yandex.practicum.filmorate.model.FriendshipStatus;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
@@ -53,33 +55,64 @@ public class UserService {
         if (userId == friendId) {
             throw new ValidationException("Нельзя добавить себя в друзья.");
         }
+
         User user = getUserOrThrow(userId);
         User friend = getUserOrThrow(friendId);
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
+
+        boolean friendRequested = friend.getFriendships().stream()
+                .anyMatch(f -> f.getFriendId() == userId);
+
+        user.getFriendships().removeIf(f -> f.getFriendId() == friendId);
+        user.getFriendships().add(new Friendship(friendId,
+                friendRequested ? FriendshipStatus.CONFIRMED : FriendshipStatus.PENDING));
+
+        friend.getFriendships().removeIf(f -> f.getFriendId() == userId);
+        friend.getFriendships().add(new Friendship(userId,
+                friendRequested ? FriendshipStatus.CONFIRMED : FriendshipStatus.PENDING));
     }
+
 
     public void removeFriend(long userId, long friendId) {
         User user = getUserOrThrow(userId);
         User friend = getUserOrThrow(friendId);
 
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
+        user.getFriendships().removeIf(f -> f.getFriendId() == friendId);
+        friend.getFriendships().removeIf(f -> f.getFriendId() == userId);
     }
 
+
     public List<User> getFriends(long userId) {
-        return getUserOrThrow(userId).getFriends().stream().map(userStorage::findById).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
+        return getUserOrThrow(userId).getFriendships().stream()
+                .filter(f -> f.getStatus() == FriendshipStatus.CONFIRMED)
+                .map(Friendship::getFriendId)
+                .map(userStorage::findById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
     }
+
 
 
     public List<User> getCommonFriends(long userId, long otherId) {
-        User user = getUserOrThrow(userId);
-        User other = getUserOrThrow(otherId);
+        Set<Long> userFriends = getUserOrThrow(userId).getFriendships().stream()
+                .filter(f -> f.getStatus() == FriendshipStatus.CONFIRMED)
+                .map(Friendship::getFriendId)
+                .collect(Collectors.toSet());
 
-        Set<Long> commonIds = user.getFriends().stream().filter(other.getFriends()::contains).collect(Collectors.toSet());
+        Set<Long> otherFriends = getUserOrThrow(otherId).getFriendships().stream()
+                .filter(f -> f.getStatus() == FriendshipStatus.CONFIRMED)
+                .map(Friendship::getFriendId)
+                .collect(Collectors.toSet());
 
-        return commonIds.stream().map(userStorage::findById).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
+        userFriends.retainAll(otherFriends);
+
+        return userFriends.stream()
+                .map(userStorage::findById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
     }
+
 
     public List<User> getUsers() {
         return userStorage.getUsers();

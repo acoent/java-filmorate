@@ -13,11 +13,10 @@ import java.util.Set;
 @Data
 @EqualsAndHashCode(of = {"id"})
 public class User {
-
     protected long id;
     protected String email;
     protected String login;
     protected String name;
     protected LocalDate birthday;
-    Set<Long> friends = new HashSet<>();
+    private Set<Friendship> friendships = new HashSet<>();
 }
