@@ -21,9 +21,9 @@ public class MpaController {
     public List<MpaRating> getAll() {
         return mpaStorage.getAll();
     }
+
     @GetMapping("/{id}")
     public MpaRating getById(@PathVariable int id) {
-        return mpaStorage.findById(id)
-                .orElseThrow(() -> new NotFoundException("MPA с id=" + id + " не найден"));
+        return mpaStorage.findById(id).orElseThrow(() -> new NotFoundException("MPA с id=" + id + " не найден"));
     }
 }
