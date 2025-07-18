@@ -15,5 +15,9 @@ public class Film {
     protected String description;
     protected LocalDate releaseDate;
     protected long duration;
-    Set<Long> likes = new HashSet<>();
+    protected MpaRating mpa;
+    private Set<Genre> genres = new HashSet<>();
+
+    public Film() {
+    }
 }

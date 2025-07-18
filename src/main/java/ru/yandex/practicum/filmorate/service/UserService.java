@@ -1,96 +1,133 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.friendship.FriendshipStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class UserService {
     private final UserStorage userStorage;
+    private final FriendshipStorage friendshipStorage;
 
-    public UserService(UserStorage userStorage) {
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage, @Qualifier("friendshipDbStorage") FriendshipStorage friendshipStorage) {
         this.userStorage = userStorage;
+        this.friendshipStorage = friendshipStorage;
     }
 
     private void validateUser(User user) {
+        log.debug("Validating user: {}", user);
         if (user.getEmail() == null || user.getEmail().isBlank() || !user.getEmail().contains("@")) {
-            throw new ValidationException("Электронная почта не может быть пустой и должна содержать символ '@'.");
+            log.warn("Invalid email: {}", user.getEmail());
+            throw new ValidationException("Email must not be empty and must contain '@'.");
         }
         if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
-            throw new ValidationException("Логин не может быть пустым и не должен содержать пробелы.");
+            log.warn("Invalid login: {}", user.getLogin());
+            throw new ValidationException("Login must not be empty or contain spaces.");
         }
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
-            throw new ValidationException("Дата рождения не может быть в будущем.");
+            log.warn("Birthday in future: {}", user.getBirthday());
+            throw new ValidationException("Birthday cannot be in the future.");
         }
         if (user.getName() == null || user.getName().isBlank()) {
+            log.info("Name is blank, setting login as name: {}", user.getLogin());
             user.setName(user.getLogin());
         }
     }
 
     public User create(User user) {
+        log.info("Creating user: {}", user);
         validateUser(user);
-        return userStorage.create(user);
+        User created = userStorage.create(user);
+        log.info("Created user: {}", created);
+        return created;
     }
 
     public User update(User user) {
+        log.info("Updating user: {}", user);
         validateUser(user);
-        return userStorage.update(user);
+        User updated = userStorage.update(user);
+        log.info("Updated user: {}", updated);
+        return updated;
     }
 
-    public User getUserOrThrow(long id) {
-        return userStorage.findById(id).orElseThrow(() -> new NotFoundException("Пользователь с id = " + id + " не найден."));
+    private User ensureExists(long id) {
+        return userStorage.findById(id).orElseThrow(() -> {
+            log.warn("User not found: id={}", id);
+            return new NotFoundException("User with id=" + id + " not found.");
+        });
     }
 
     public void addFriend(long userId, long friendId) {
+        log.info("User {} adding friend {}", userId, friendId);
         if (userId == friendId) {
-            throw new ValidationException("Нельзя добавить себя в друзья.");
+            log.warn("Attempt to add oneself as friend: {}", userId);
+            throw new ValidationException("Cannot add yourself as friend.");
         }
-        User user = getUserOrThrow(userId);
-        User friend = getUserOrThrow(friendId);
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
+        ensureExists(userId);
+        ensureExists(friendId);
+        friendshipStorage.sendFriendRequest(userId, friendId);
+        log.info("User {} successfully sent friend request to {}", userId, friendId);
     }
 
     public void removeFriend(long userId, long friendId) {
-        User user = getUserOrThrow(userId);
-        User friend = getUserOrThrow(friendId);
-
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
+        log.info("User {} removing friend {}", userId, friendId);
+        ensureExists(userId);
+        ensureExists(friendId);
+        friendshipStorage.removeFriend(userId, friendId);
+        log.info("User {} removed friend {}", userId, friendId);
     }
 
     public List<User> getFriends(long userId) {
-        return getUserOrThrow(userId).getFriends().stream().map(userStorage::findById).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
+        log.info("Fetching friends for user {}", userId);
+        ensureExists(userId);
+        List<Long> ids = friendshipStorage.getFriends(userId);
+        List<User> friends = ids.stream().map(userStorage::findById).flatMap(Optional::stream).collect(Collectors.toList());
+        log.info("User {} has friends: {}", userId, ids);
+        return friends;
     }
 
-
     public List<User> getCommonFriends(long userId, long otherId) {
-        User user = getUserOrThrow(userId);
-        User other = getUserOrThrow(otherId);
+        log.info("Fetching common friends between {} and {}", userId, otherId);
+        ensureExists(userId);
+        ensureExists(otherId);
 
-        Set<Long> commonIds = user.getFriends().stream().filter(other.getFriends()::contains).collect(Collectors.toSet());
+        Set<Long> set1 = new HashSet<>(friendshipStorage.getFriends(userId));
+        Set<Long> set2 = new HashSet<>(friendshipStorage.getFriends(otherId));
+        set1.retainAll(set2);
 
-        return commonIds.stream().map(userStorage::findById).filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
+        List<User> common = set1.stream().map(userStorage::findById).flatMap(Optional::stream).collect(Collectors.toList());
+        log.info("Common friends: {}", set1);
+        return common;
     }
 
     public List<User> getUsers() {
-        return userStorage.getUsers();
+        log.info("Fetching all users");
+        List<User> users = userStorage.getUsers();
+        log.info("Found {} users", users.size());
+        return users;
     }
 
     public Optional<User> findById(long id) {
+        log.info("Looking up user id={}", id);
         return userStorage.findById(id);
     }
 
     public void delete(long id) {
+        log.info("Deleting user id={}", id);
         userStorage.delete(id);
+        log.info("Deleted user id={}", id);
     }
-
 }

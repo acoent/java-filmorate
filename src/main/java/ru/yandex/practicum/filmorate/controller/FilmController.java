@@ -18,9 +18,8 @@ public class FilmController {
 
     @GetMapping("/{id}")
     public Film getFilm(@PathVariable long id) {
-        return filmService.getFilmOrThrow(id); // исключение пусть летит
+        return filmService.getFilmOrThrow(id);
     }
-
 
     @GetMapping("/popular")
     public List<Film> getPopularFilms(@RequestParam(defaultValue = "10") int count) {
