@@ -18,12 +18,11 @@ CREATE TABLE users
 
 CREATE TABLE friendships
 (
-    user_id   INTEGER     NOT NULL,
-    friend_id INTEGER     NOT NULL,
-    status    VARCHAR(50) NOT NULL,
+    user_id   INTEGER NOT NULL,
+    friend_id INTEGER NOT NULL,
     PRIMARY KEY (user_id, friend_id),
-    FOREIGN KEY (user_id) REFERENCES users (id),
-    FOREIGN KEY (friend_id) REFERENCES users (id)
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (friend_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE TABLE mpa_rating

@@ -63,11 +63,11 @@ public class UserService {
         return updated;
     }
 
-    private User ensureExists(long id) {
-        return userStorage.findById(id).orElseThrow(() -> {
+    private void ensureExists(long id) {
+        if (userStorage.findById(id).isEmpty()) {
             log.warn("User not found: id={}", id);
-            return new NotFoundException("User with id=" + id + " not found.");
-        });
+            throw new NotFoundException("User with id=" + id + " not found.");
+        }
     }
 
     public void addFriend(long userId, long friendId) {
@@ -109,15 +109,15 @@ public class UserService {
         set1.retainAll(set2);
 
         List<User> common = set1.stream().map(userStorage::findById).flatMap(Optional::stream).collect(Collectors.toList());
-        log.info("Common friends: {}", set1);
+        log.info("Common friends of {} and {}: {}", userId, otherId, set1);
         return common;
     }
 
     public List<User> getUsers() {
         log.info("Fetching all users");
-        List<User> users = userStorage.getUsers();
-        log.info("Found {} users", users.size());
-        return users;
+        List<User> all = userStorage.getUsers();
+        log.info("Found {} users", all.size());
+        return all;
     }
 
     public Optional<User> findById(long id) {

@@ -16,7 +16,7 @@ public class FriendshipDbStorage implements FriendshipStorage {
 
     @Override
     public void sendFriendRequest(long userId, long friendId) {
-        String sql = "MERGE INTO friendships (user_id, friend_id, status) " + "KEY(user_id, friend_id) VALUES (?, ?, 'CONFIRMED')";
+        String sql = "MERGE INTO friendships (user_id, friend_id) " + "KEY(user_id, friend_id) VALUES (?, ?)";
         jdbcTemplate.update(sql, userId, friendId);
     }
 
@@ -28,7 +28,7 @@ public class FriendshipDbStorage implements FriendshipStorage {
 
     @Override
     public List<Long> getFriends(long userId) {
-        String sql = "SELECT friend_id " + "FROM friendships " + "WHERE user_id = ? AND status = 'CONFIRMED'";
+        String sql = "SELECT friend_id FROM friendships WHERE user_id = ?";
         return jdbcTemplate.queryForList(sql, Long.class, userId);
     }
 }

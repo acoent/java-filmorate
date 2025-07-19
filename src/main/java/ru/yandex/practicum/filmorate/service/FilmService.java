@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
@@ -13,7 +12,6 @@ import ru.yandex.practicum.filmorate.storage.like.LikeStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -42,7 +40,7 @@ public class FilmService {
 
     public Film create(Film film) {
         log.info("Creating film: {}", film);
-        validateFilm(film);
+        validateMpaAndGenres(film);
         Film created = filmStorage.create(film);
         log.info("Created film with id={}", created.getId());
         return created;
@@ -50,7 +48,7 @@ public class FilmService {
 
     public Film update(Film film) {
         log.info("Updating film: {}", film);
-        validateFilm(film);
+        validateMpaAndGenres(film);
         Film updated = filmStorage.update(film);
         log.info("Updated film id={}", updated.getId());
         return updated;
@@ -95,36 +93,19 @@ public class FilmService {
         return popular;
     }
 
-    private void validateFilm(Film film) {
-        log.debug("Validating film: {}", film);
+    private void validateMpaAndGenres(Film film) {
         mpaStorage.findById(film.getMpa().getId()).orElseThrow(() -> new NotFoundException("MPA with id=" + film.getMpa().getId() + " not found."));
         if (film.getGenres() != null) {
             for (Genre g : film.getGenres()) {
                 genreStorage.findById(g.getId()).orElseThrow(() -> new NotFoundException("Genre with id=" + g.getId() + " not found."));
             }
         }
-        if (film.getName() == null || film.getName().isBlank()) {
-            log.warn("Film name is blank");
-            throw new ValidationException("Film name cannot be empty.");
-        }
-        if (film.getDescription().length() > 200) {
-            log.warn("Film description too long ({} chars)", film.getDescription().length());
-            throw new ValidationException("Description max length is 200 characters.");
-        }
-        if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
-            log.warn("Film release date too early: {}", film.getReleaseDate());
-            throw new ValidationException("Release date cannot be before Dec 28, 1895.");
-        }
-        if (film.getDuration() < 1) {
-            log.warn("Film duration invalid: {}", film.getDuration());
-            throw new ValidationException("Duration must be positive.");
-        }
     }
 
     private void validateUserExists(long userId) {
-        userStorage.findById(userId).orElseThrow(() -> {
+        if (userStorage.findById(userId).isEmpty()) {
             log.warn("User not found id={}", userId);
-            return new NotFoundException("User with id=" + userId + " not found.");
-        });
+            throw new NotFoundException("User with id=" + userId + " not found.");
+        }
     }
 }
