@@ -1,46 +1,47 @@
-# Filmorate:
-ER-диаграмма базы данных
+# Filmorate
+
+## Database ER Diagram
 
 ![ER-диаграмма Filmorate](db-diagram.png)
 
-Проект Filmorate — социальный сервис для оценки фильмов и взаимодействия между пользователями.
+Filmorate is a social service for rating movies and interacting with other users.
 
-Основные таблицы:
+## Main Database Tables
 
-- `users` — информация о пользователях
-- `films` — фильмы с описанием, длительностью и рейтингом MPA
-- `mpa_rating` — возрастные рейтинги (G, PG, PG-13, R, NC-17)
-- `genres` — жанры фильмов
-- `film_genres` — связь many-to-many между фильмами и жанрами
-- `likes` — лайки пользователей к фильмам
-- `friendships` — статус дружбы между пользователями (PENDING, CONFIRMED)
+- `users` — stores user information
+- `films` — movies with descriptions, duration, and MPA ratings
+- `mpa_rating` — age ratings (G, PG, PG-13, R, NC-17)
+- `genres` — movie genres
+- `film_genres` — many-to-many relationship between films and genres
+- `likes` — user likes for movies
+- `friendships` — friendship relationships between users with statuses (`PENDING`, `CONFIRMED`)
 
-## Примеры SQL-запросов
+## Example SQL Queries
 
-### Все фильмы с жанром "Комедия"
+### Get all films with the "Comedy" genre
 
 ```sql
 SELECT f.*
 FROM films f
 JOIN film_genres fg ON f.id = fg.film_id
 JOIN genres g ON fg.genre_id = g.id
-WHERE g.name = 'Комедия'
+WHERE g.name = 'Comedy';
 ```
-Фильмы, понравившиеся пользователю с id = 1
+Get films liked by user with id = 1
 ```sql
 SELECT f.*
 FROM films f
 JOIN likes l ON f.id = l.film_id
 WHERE l.user_id = 1;
 ```
-Подтверждённые друзья пользователя с id = 1
+Get confirmed friends of user with id = 1
 ```sql
 SELECT u.*
 FROM users u
 JOIN friendships f ON u.id = f.friend_id
 WHERE f.user_id = 1 AND f.status = 'CONFIRMED';
 ```
-Топ-10 фильмов по числу лайков
+Get top 10 films by number of likes
 ```sql
 SELECT f.*, COUNT(l.user_id) AS likes_count
 FROM films f
